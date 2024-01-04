@@ -49,7 +49,7 @@ public class LlamaServiceSelectionForm extends JPanel {
     llamaModelPreferencesForm = new LlamaModelPreferencesForm();
 
     var llamaSettings = LlamaSettingsState.getInstance();
-    maxTokensField = new IntegerField("max_tokens", 256, 4096);
+    maxTokensField = new IntegerField("max_tokens", 256, 4096); // Test
     maxTokensField.setColumns(12);
     maxTokensField.setValue(llamaSettings.getContextSize());
     maxTokensField.setEnabled(!serverRunning);
