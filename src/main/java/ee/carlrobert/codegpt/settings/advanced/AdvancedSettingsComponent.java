@@ -10,7 +10,7 @@ import com.intellij.util.ui.FormBuilder;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UI;
 import ee.carlrobert.codegpt.CodeGPTBundle;
-import ee.carlrobert.codegpt.util.UIUtil;
+import ee.carlrobert.codegpt.ui.UIUtil;
 import java.awt.event.ItemEvent;
 import java.net.Proxy;
 import javax.swing.BoxLayout;
@@ -161,7 +161,7 @@ public class AdvancedSettingsComponent {
         false);
     var proxyPortPanel = UIUtil.createPanel(
         proxyPortField,
-        CodeGPTBundle.get("advancedSettingsConfigurable.proxy.portField.label"),
+        CodeGPTBundle.get("shared.port"),
         false);
     UIUtil.setEqualLabelWidths(proxyTypePanel, proxyHostPanel);
     UIUtil.setEqualLabelWidths(proxyPortPanel, proxyHostPanel);

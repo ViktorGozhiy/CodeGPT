@@ -20,7 +20,7 @@ import com.intellij.ui.components.JBLabel;
 import com.intellij.util.ui.AsyncProcessIcon;
 import com.intellij.util.ui.JBUI;
 import ee.carlrobert.codegpt.util.file.FileUtil;
-import ee.carlrobert.embedding.CheckedFile;
+import ee.carlrobert.embedding.ReferencedFile;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.event.MouseAdapter;
@@ -125,16 +125,16 @@ public class FolderStructureTreePanel {
     } else {
       panel.add(new JBLabel("Total size: "
           + FileUtil.convertFileSize(totalSize) + " ~ "
-          + (convertLongValue(totalSize / 4)) + " tokens " + " ~ "
+          + (FileUtil.convertLongValue(totalSize / 4)) + " tokens " + " ~ "
           + new DecimalFormat("#.##")
           .format(((double) (totalSize / 4) / 1000) * 0.0001) + " $"));
     }
     return panel;
   }
 
-  public List<CheckedFile> getCheckedFiles() {
+  public List<ReferencedFile> getReferencedFiles() {
     return getCheckedVirtualFiles().stream()
-        .map(item -> new CheckedFile(new File(item.getPath())))
+        .map(item -> new ReferencedFile(new File(item.getPath())))
         .collect(toList());
   }
 
@@ -218,17 +218,6 @@ public class FolderStructureTreePanel {
         }
       }
     };
-  }
-
-  private static String convertLongValue(long value) {
-    if (value >= 1_000_000) {
-      return value / 1_000_000 + "M";
-    }
-    if (value >= 1_000) {
-      return value / 1_000 + "K";
-    }
-
-    return String.valueOf(value);
   }
 
   private static final List<String> ignoredFileDirectories = List.of(

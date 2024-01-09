@@ -11,9 +11,9 @@ import ee.carlrobert.codegpt.indexes.CodebaseIndexingCompletedNotifier;
 import ee.carlrobert.codegpt.indexes.CodebaseIndexingTask;
 import ee.carlrobert.codegpt.indexes.FolderStructureTreePanel;
 import ee.carlrobert.codegpt.settings.SettingsConfigurable;
-import ee.carlrobert.codegpt.toolwindow.chat.components.ResponsePanel;
-import ee.carlrobert.codegpt.util.OverlayUtil;
-import ee.carlrobert.codegpt.util.UIUtil;
+import ee.carlrobert.codegpt.toolwindow.chat.ui.ResponsePanel;
+import ee.carlrobert.codegpt.ui.OverlayUtil;
+import ee.carlrobert.codegpt.ui.UIUtil;
 import ee.carlrobert.vector.VectorStore;
 import javax.swing.JTextPane;
 import javax.swing.event.HyperlinkEvent;
@@ -97,7 +97,8 @@ class ContextualChatToolWindowLandingPanel extends ResponsePanel {
             var folderStructureTreePanel = new FolderStructureTreePanel(project);
             var show = OverlayUtil.showFileStructureDialog(project, folderStructureTreePanel);
             if (show == OK_EXIT_CODE) {
-              new CodebaseIndexingTask(project, folderStructureTreePanel.getCheckedFiles()).run();
+              new CodebaseIndexingTask(project, folderStructureTreePanel.getReferencedFiles())
+                  .run();
             }
             break;
           default:

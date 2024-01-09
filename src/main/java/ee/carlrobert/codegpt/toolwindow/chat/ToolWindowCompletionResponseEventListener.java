@@ -5,6 +5,7 @@ import static com.intellij.openapi.ui.Messages.OK;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import ee.carlrobert.codegpt.EncodingManager;
+import ee.carlrobert.codegpt.completions.CallParameters;
 import ee.carlrobert.codegpt.completions.CompletionResponseEventListener;
 import ee.carlrobert.codegpt.conversations.Conversation;
 import ee.carlrobert.codegpt.conversations.ConversationService;
@@ -14,17 +15,18 @@ import ee.carlrobert.codegpt.settings.state.OpenAISettingsState;
 import ee.carlrobert.codegpt.settings.state.SettingsState;
 import ee.carlrobert.codegpt.settings.state.YouSettingsState;
 import ee.carlrobert.codegpt.telemetry.TelemetryAction;
-import ee.carlrobert.codegpt.toolwindow.chat.components.ChatMessageResponseBody;
-import ee.carlrobert.codegpt.toolwindow.chat.components.ResponsePanel;
-import ee.carlrobert.codegpt.toolwindow.chat.components.TotalTokensPanel;
-import ee.carlrobert.codegpt.toolwindow.chat.components.UserPromptTextArea;
-import ee.carlrobert.codegpt.util.OverlayUtil;
+import ee.carlrobert.codegpt.toolwindow.chat.ui.ChatMessageResponseBody;
+import ee.carlrobert.codegpt.toolwindow.chat.ui.ResponsePanel;
+import ee.carlrobert.codegpt.toolwindow.chat.ui.textarea.TotalTokensPanel;
+import ee.carlrobert.codegpt.toolwindow.chat.ui.textarea.UserPromptTextArea;
+import ee.carlrobert.codegpt.ui.OverlayUtil;
 import ee.carlrobert.llm.client.openai.completion.ErrorDetails;
 import ee.carlrobert.llm.client.you.completion.YouSerpResult;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import javax.swing.SwingUtilities;
 
 abstract class ToolWindowCompletionResponseEventListener implements
     CompletionResponseEventListener {
@@ -80,63 +82,66 @@ abstract class ToolWindowCompletionResponseEventListener implements
 
   @Override
   public void handleError(ErrorDetails error, Throwable ex) {
-    try {
-      if ("insufficient_quota".equals(error.getCode())) {
-        if (SettingsState.getInstance().getSelectedService() == ServiceType.OPENAI) {
-          OpenAISettingsState.getInstance().setOpenAIQuotaExceeded(true);
+    SwingUtilities.invokeLater(() -> {
+      try {
+        if ("insufficient_quota".equals(error.getCode())) {
+          if (SettingsState.getInstance().getSelectedService() == ServiceType.OPENAI) {
+            OpenAISettingsState.getInstance().setOpenAIQuotaExceeded(true);
+          }
+          responseContainer.displayQuotaExceeded();
+        } else {
+          responseContainer.displayError(error.getMessage());
         }
-        responseContainer.displayQuotaExceeded();
-      } else {
-        responseContainer.displayError(error.getMessage());
+      } finally {
+        LOG.error(error.getMessage(), ex);
+        responsePanel.enableActions();
+        stopStreaming(responseContainer);
       }
-    } finally {
-      LOG.error(error.getMessage(), ex);
-      responsePanel.enableActions();
-      stopStreaming(responseContainer);
-    }
+    });
   }
 
   @Override
   public void handleTokensExceeded(Conversation conversation, Message message) {
-    var answer = OverlayUtil.showTokenLimitExceededDialog();
-    if (answer == OK) {
-      TelemetryAction.IDE_ACTION.createActionMessage()
-          .property("action", "DISCARD_TOKEN_LIMIT")
-          .property("model", conversation.getModel())
-          .send();
+    SwingUtilities.invokeLater(() -> {
+      var answer = OverlayUtil.showTokenLimitExceededDialog();
+      if (answer == OK) {
+        TelemetryAction.IDE_ACTION.createActionMessage()
+            .property("action", "DISCARD_TOKEN_LIMIT")
+            .property("model", conversation.getModel())
+            .send();
 
-      conversationService.discardTokenLimits(conversation);
-      handleTokensExceededPolicyAccepted();
-    } else {
-      stopStreaming(responseContainer);
-    }
+        conversationService.discardTokenLimits(conversation);
+        handleTokensExceededPolicyAccepted();
+      } else {
+        stopStreaming(responseContainer);
+      }
+    });
   }
 
   @Override
-  public void handleCompleted(
-      String fullMessage,
-      Message message,
-      Conversation conversation,
-      boolean retry) {
-    try {
-      responsePanel.enableActions();
-      conversationService.saveMessage(fullMessage, message, conversation, retry);
+  public void handleCompleted(String fullMessage, CallParameters callParameters) {
+    var message = callParameters.getMessage();
+    conversationService.saveMessage(fullMessage, callParameters);
 
-      var serpResults = serpResultsMapping.get(message.getId());
-      var containsResults = serpResults != null && !serpResults.isEmpty();
-      if (YouSettingsState.getInstance().isDisplayWebSearchResults() && containsResults) {
-        responseContainer.displaySerpResults(serpResults);
-      }
-
-      if (containsResults) {
-        message.setSerpResults(serpResults);
-      }
-
-      totalTokensPanel.updateUserPromptTokens(userPromptTextArea.getText());
-      totalTokensPanel.updateConversationTokens(conversation);
-    } finally {
-      stopStreaming(responseContainer);
+    var serpResults = serpResultsMapping.get(message.getId());
+    var containsResults = serpResults != null && !serpResults.isEmpty();
+    if (containsResults) {
+      message.setSerpResults(serpResults);
     }
+    var displayResults = YouSettingsState.getInstance().isDisplayWebSearchResults();
+
+    SwingUtilities.invokeLater(() -> {
+      try {
+        responsePanel.enableActions();
+        if (displayResults && containsResults) {
+          responseContainer.displaySerpResults(serpResults);
+        }
+        totalTokensPanel.updateUserPromptTokens(userPromptTextArea.getText());
+        totalTokensPanel.updateConversationTokens(callParameters.getConversation());
+      } finally {
+        stopStreaming(responseContainer);
+      }
+    });
   }
 
   @Override

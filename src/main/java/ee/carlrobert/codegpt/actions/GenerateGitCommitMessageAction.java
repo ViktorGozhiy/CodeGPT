@@ -2,7 +2,6 @@ package ee.carlrobert.codegpt.actions;
 
 import static com.intellij.openapi.ui.Messages.OK;
 import static com.intellij.util.ObjectUtils.tryCast;
-import static ee.carlrobert.codegpt.util.file.FileUtil.getResourceContent;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
 
@@ -24,13 +23,13 @@ import com.intellij.openapi.vcs.ui.CommitMessage;
 import ee.carlrobert.codegpt.CodeGPTBundle;
 import ee.carlrobert.codegpt.EncodingManager;
 import ee.carlrobert.codegpt.Icons;
-import ee.carlrobert.codegpt.completions.CompletionClientProvider;
+import ee.carlrobert.codegpt.completions.CompletionRequestService;
+import ee.carlrobert.codegpt.credentials.AzureCredentialsManager;
 import ee.carlrobert.codegpt.credentials.OpenAICredentialsManager;
-import ee.carlrobert.codegpt.settings.state.OpenAISettingsState;
-import ee.carlrobert.codegpt.util.OverlayUtil;
+import ee.carlrobert.codegpt.settings.service.ServiceType;
+import ee.carlrobert.codegpt.settings.state.SettingsState;
+import ee.carlrobert.codegpt.ui.OverlayUtil;
 import ee.carlrobert.llm.client.openai.completion.ErrorDetails;
-import ee.carlrobert.llm.client.openai.completion.chat.request.OpenAIChatCompletionMessage;
-import ee.carlrobert.llm.client.openai.completion.chat.request.OpenAIChatCompletionRequest;
 import ee.carlrobert.llm.completion.CompletionEventListener;
 import java.io.BufferedReader;
 import java.io.File;
@@ -54,11 +53,22 @@ public class GenerateGitCommitMessageAction extends AnAction {
 
   @Override
   public void update(@NotNull AnActionEvent event) {
-    var apiKeyExists = OpenAICredentialsManager.getInstance().isApiKeySet();
-    event.getPresentation().setEnabled(apiKeyExists && !getCheckedFilePaths(event).isEmpty());
-    event.getPresentation().setText(CodeGPTBundle.get(apiKeyExists
-        ? "action.generateCommitMessage.title"
-        : "action.generateCommitMessage.serviceWarning"));
+    var selectedService = SettingsState.getInstance().getSelectedService();
+    if (selectedService == ServiceType.OPENAI || selectedService == ServiceType.AZURE) {
+      var filesSelected = !getReferencedFilePaths(event).isEmpty();
+      var callAllowed = (selectedService == ServiceType.OPENAI
+          && OpenAICredentialsManager.getInstance().isApiKeySet())
+          || (selectedService == ServiceType.AZURE
+          && AzureCredentialsManager.getInstance().isCredentialSet());
+      event.getPresentation().setEnabled(callAllowed && filesSelected);
+      event.getPresentation().setText(CodeGPTBundle.get(callAllowed
+          ? "action.generateCommitMessage.title"
+          : "action.generateCommitMessage.missingCredentials"));
+    } else {
+      event.getPresentation().setEnabled(false);
+      event.getPresentation()
+          .setText(CodeGPTBundle.get("action.generateCommitMessage.serviceWarning"));
+    }
   }
 
   @Override
@@ -68,7 +78,7 @@ public class GenerateGitCommitMessageAction extends AnAction {
       return;
     }
 
-    var gitDiff = getGitDiff(project, getCheckedFilePaths(event));
+    var gitDiff = getGitDiff(project, getReferencedFilePaths(event));
     var tokenCount = encodingManager.countTokens(gitDiff);
     if (tokenCount > 4096 && OverlayUtil.showTokenSoftLimitWarningDialog(tokenCount) != OK) {
       return;
@@ -77,19 +87,9 @@ public class GenerateGitCommitMessageAction extends AnAction {
     var editor = getCommitMessageEditor(event);
     if (editor != null) {
       ((EditorEx) editor).setCaretVisible(false);
-      generateMessage(project, editor, gitDiff);
+      CompletionRequestService.getInstance()
+          .generateCommitMessageAsync(gitDiff, getEventListener(project, editor.getDocument()));
     }
-  }
-
-  private void generateMessage(Project project, Editor editor, String gitDiff) {
-    CompletionClientProvider.getOpenAIClient().getChatCompletion(
-        new OpenAIChatCompletionRequest.Builder(List.of(
-            new OpenAIChatCompletionMessage("system",
-                getResourceContent("/prompts/git-message.txt")),
-            new OpenAIChatCompletionMessage("user", gitDiff)))
-            .setModel(OpenAISettingsState.getInstance().getModel())
-            .build(),
-        getEventListener(project, editor.getDocument()));
   }
 
   private CompletionEventListener getEventListener(Project project, Document document) {
@@ -145,7 +145,7 @@ public class GenerateGitCommitMessageAction extends AnAction {
     }
   }
 
-  private @NotNull List<String> getCheckedFilePaths(AnActionEvent event) {
+  private @NotNull List<String> getReferencedFilePaths(AnActionEvent event) {
     var changesBrowserBase = event.getData(ChangesBrowserBase.DATA_KEY);
     if (changesBrowserBase == null) {
       return List.of();

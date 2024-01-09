@@ -20,8 +20,8 @@ import ee.carlrobert.codegpt.credentials.OpenAICredentialsManager;
 import ee.carlrobert.codegpt.settings.state.AzureSettingsState;
 import ee.carlrobert.codegpt.settings.state.OpenAISettingsState;
 import ee.carlrobert.codegpt.settings.state.YouSettingsState;
-import ee.carlrobert.codegpt.util.UIUtil;
-import ee.carlrobert.llm.client.openai.completion.chat.OpenAIChatCompletionModel;
+import ee.carlrobert.codegpt.ui.UIUtil;
+import ee.carlrobert.llm.client.openai.completion.OpenAIChatCompletionModel;
 import java.util.List;
 import java.util.Map;
 import javax.swing.ButtonGroup;
@@ -363,6 +363,10 @@ public class ServiceSelectionForm {
 
   public LlamaModelPreferencesForm getLlamaModelPreferencesForm() {
     return llamaServiceSectionPanel.getLlamaModelPreferencesForm();
+  }
+
+  public LlamaRequestPreferencesForm getLlamaRequestPreferencesForm() {
+    return llamaServiceSectionPanel.getLlamaRequestPreferencesForm();
   }
 
   public void setOpenAIPath(String path) {

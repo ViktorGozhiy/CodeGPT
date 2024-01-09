@@ -18,8 +18,9 @@ import ee.carlrobert.codegpt.CodeGPTBundle;
 import ee.carlrobert.codegpt.CodeGPTPlugin;
 import ee.carlrobert.codegpt.completions.HuggingFaceModel;
 import ee.carlrobert.codegpt.completions.llama.LlamaServerAgent;
+import ee.carlrobert.codegpt.completions.llama.LlamaServerStartupParams;
 import ee.carlrobert.codegpt.settings.state.LlamaSettingsState;
-import ee.carlrobert.codegpt.util.OverlayUtil;
+import ee.carlrobert.codegpt.ui.OverlayUtil;
 import java.awt.BorderLayout;
 import java.io.File;
 import java.util.Arrays;
@@ -34,6 +35,7 @@ import javax.swing.SwingConstants;
 public class LlamaServiceSelectionForm extends JPanel {
 
   private final LlamaModelPreferencesForm llamaModelPreferencesForm;
+  private final LlamaRequestPreferencesForm llamaRequestPreferencesForm;
   private final PortField portField;
   private final IntegerField maxTokensField;
   private final IntegerField threadsField;
@@ -47,6 +49,7 @@ public class LlamaServiceSelectionForm extends JPanel {
     portField.setEnabled(!serverRunning);
 
     llamaModelPreferencesForm = new LlamaModelPreferencesForm();
+    llamaRequestPreferencesForm = new LlamaRequestPreferencesForm();
 
     var llamaSettings = LlamaSettingsState.getInstance();
     maxTokensField = new IntegerField("max_tokens", 256, 4096);
@@ -75,6 +78,10 @@ public class LlamaServiceSelectionForm extends JPanel {
 
   public LlamaModelPreferencesForm getLlamaModelPreferencesForm() {
     return llamaModelPreferencesForm;
+  }
+
+  public LlamaRequestPreferencesForm getLlamaRequestPreferencesForm() {
+    return llamaRequestPreferencesForm;
   }
 
   private JComponent withEmptyLeftBorder(JComponent component) {
@@ -118,6 +125,7 @@ public class LlamaServiceSelectionForm extends JPanel {
 
   private void init(LlamaServerAgent llamaServerAgent) {
     var serverProgressPanel = new ServerProgressPanel();
+    serverProgressPanel.setBorder(JBUI.Borders.emptyRight(16));
     setLayout(new BorderLayout());
     add(FormBuilder.createFormBuilder()
         .addComponent(new TitledSeparator(
@@ -126,6 +134,14 @@ public class LlamaServiceSelectionForm extends JPanel {
         .addComponent(new TitledSeparator(
             CodeGPTBundle.get("settingsConfigurable.service.llama.serverPreferences.title")))
         .addComponent(withEmptyLeftBorder(FormBuilder.createFormBuilder()
+            .addLabeledComponent(
+                CodeGPTBundle.get("shared.port"),
+                JBUI.Panels.simplePanel()
+                    .addToLeft(portField)
+                    .addToRight(JBUI.Panels.simplePanel()
+                        .addToCenter(serverProgressPanel)
+                        .addToRight(getServerButton(llamaServerAgent, serverProgressPanel))))
+            .addVerticalGap(4)
             .addLabeledComponent(
                 CodeGPTBundle.get("settingsConfigurable.service.llama.contextSize.label"),
                 maxTokensField)
@@ -141,14 +157,10 @@ public class LlamaServiceSelectionForm extends JPanel {
                 additionalParametersField)
             .addComponentToRightColumn(
                 createComment("settingsConfigurable.service.llama.additionalParameters.comment"))
-            .addLabeledComponent(
-                CodeGPTBundle.get("settingsConfigurable.service.llama.port.label"),
-                JBUI.Panels.simplePanel()
-                    .addToLeft(portField)
-                    .addToRight(getServerButton(llamaServerAgent, serverProgressPanel)))
+            .addVerticalGap(8)
             .getPanel()))
-        .addVerticalGap(4)
-        .addComponent(withEmptyLeftBorder(serverProgressPanel))
+        .addComponent(new TitledSeparator("Request Preferences"))
+        .addComponent(withEmptyLeftBorder(llamaRequestPreferencesForm.getForm()))
         .addComponentFillVertically(new JPanel(), 0)
         .getPanel());
   }
@@ -179,11 +191,31 @@ public class LlamaServiceSelectionForm extends JPanel {
         llamaServerAgent.stopAgent();
       } else {
         disableForm(serverButton, serverProgressPanel);
-        llamaServerAgent.startAgent(this, serverProgressPanel, () -> {
-          setFormEnabled(false);
-          serverProgressPanel.displayComponent(
-              new JBLabel("Server running", Actions.Checked, SwingConstants.LEADING));
-        });
+        llamaServerAgent.startAgent(
+            new LlamaServerStartupParams(
+                llamaModelPreferencesForm.getActualModelPath(),
+                getContextSize(),
+                getThreads(),
+                getServerPort(),
+                getListOfAdditionalParameters()),
+            serverProgressPanel,
+            () -> {
+              setFormEnabled(false);
+              serverProgressPanel.displayComponent(new JBLabel(
+                  CodeGPTBundle.get("settingsConfigurable.service.llama.progress.serverRunning"),
+                  Actions.Checked,
+                  SwingConstants.LEADING));
+            },
+            () -> {
+              setFormEnabled(true);
+              serverButton.setText(
+                  CodeGPTBundle.get("settingsConfigurable.service.llama.startServer.label"));
+              serverButton.setIcon(Actions.Execute);
+              serverProgressPanel.displayComponent(new JBLabel(
+                  CodeGPTBundle.get("settingsConfigurable.service.llama.progress.serverTerminated"),
+                  Actions.Cancel,
+                  SwingConstants.LEADING));
+            });
       }
     });
     return serverButton;
@@ -200,7 +232,7 @@ public class LlamaServiceSelectionForm extends JPanel {
         OverlayUtil.showBalloon(
             CodeGPTBundle.get("validation.error.fieldRequired"),
             MessageType.ERROR,
-            llamaModelPreferencesForm.getCustomModelPathBrowserButton());
+            llamaModelPreferencesForm.getBrowsableCustomModelTextField());
         return false;
       }
     }
@@ -208,8 +240,8 @@ public class LlamaServiceSelectionForm extends JPanel {
   }
 
   private boolean validateSelectedModel() {
-    if (!llamaModelPreferencesForm.isUseCustomLlamaModel() && !isModelExists(
-        llamaModelPreferencesForm.getSelectedModel())) {
+    if (!llamaModelPreferencesForm.isUseCustomLlamaModel()
+        && !isModelExists(llamaModelPreferencesForm.getSelectedModel())) {
       OverlayUtil.showBalloon(
           CodeGPTBundle.get("settingsConfigurable.service.llama.overlay.modelNotDownloaded.text"),
           MessageType.ERROR,

@@ -10,12 +10,16 @@ import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.impl.EditorImpl;
 import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.project.Project;
+import ee.carlrobert.codegpt.CodeGPTKeys;
 import ee.carlrobert.codegpt.conversations.message.Message;
 import ee.carlrobert.codegpt.settings.configuration.ConfigurationState;
 import ee.carlrobert.codegpt.toolwindow.chat.standard.StandardChatToolWindowContentManager;
 import ee.carlrobert.codegpt.util.file.FileUtil;
+import ee.carlrobert.embedding.ReferencedFile;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.apache.commons.text.CaseUtils;
 
 public class EditorActionsUtil {
@@ -63,10 +67,13 @@ public class EditorActionsUtil {
             message.setUserMessage(prompt.replace("{{selectedCode}}", ""));
             var toolWindowContentManager =
                 project.getService(StandardChatToolWindowContentManager.class);
-            var toolWindow = toolWindowContentManager.getToolWindow();
-            if (toolWindow != null) {
-              toolWindow.show();
-            }
+            toolWindowContentManager.getToolWindow().show();
+
+            message.setReferencedFilePaths(
+                Stream.ofNullable(project.getUserData(CodeGPTKeys.SELECTED_FILES))
+                    .flatMap(Collection::stream)
+                    .map(ReferencedFile::getFilePath)
+                    .collect(toList()));
             toolWindowContentManager.sendMessage(message);
           }
         };

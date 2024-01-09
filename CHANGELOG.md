@@ -6,6 +6,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.12] - 2023-12-21
+
+### Added
+
+- Support for extended request parameters for llama.cpp
+
+## [2.2.11] - 2023-12-14
+
+### Added
+
+- Support for chatting with multiple files
+- Support for generating commit messages and method names with Azure service
+
+## [2.2.10] - 2023-12-12
+
+### Added
+
+- Configurable commit-message system prompt
+
+### Fixed
+
+- Redundant chat tab creation on provider/model change
+- Azure bas host and path overriding
+
+## [2.2.9] - 2023-12-04
+
+### Added
+
+- IDE notification on new plugin versions
+
+### Fixed
+
+- LLaMA settings state on server failure
+
+### Improved
+
+- LLaMA server logging
+
+## [2.2.8] - 2023-12-01
+
+### Fixed
+
+- UI concurrency issues (run completion events on EDT)
+
+## [2.2.7] - 2023-11-30
+
+### Fixed
+
+- LLaMA server boot up when additional params are not set
+
 ## [2.2.6] - 2023-11-27
 
 ### Added
@@ -279,7 +329,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `OPENAI_API_KEY` persistence, key is saved in the OS password safe from now on
 
-[Unreleased]: https://github.com/carlrobertoh/CodeGPT/compare/v2.2.6...HEAD
+[Unreleased]: https://github.com/carlrobertoh/CodeGPT/compare/v2.2.12...HEAD
+[2.2.12]: https://github.com/carlrobertoh/CodeGPT/compare/v2.2.11...v2.2.12
+[2.2.11]: https://github.com/carlrobertoh/CodeGPT/compare/v2.2.10...v2.2.11
+[2.2.10]: https://github.com/carlrobertoh/CodeGPT/compare/v2.2.9...v2.2.10
+[2.2.9]: https://github.com/carlrobertoh/CodeGPT/compare/v2.2.8...v2.2.9
+[2.2.8]: https://github.com/carlrobertoh/CodeGPT/compare/v2.2.7...v2.2.8
+[2.2.7]: https://github.com/carlrobertoh/CodeGPT/compare/v2.2.6...v2.2.7
 [2.2.6]: https://github.com/carlrobertoh/CodeGPT/compare/v2.2.5...v2.2.6
 [2.2.5]: https://github.com/carlrobertoh/CodeGPT/compare/v2.2.4...v2.2.5
 [2.2.4]: https://github.com/carlrobertoh/CodeGPT/compare/v2.2.3...v2.2.4

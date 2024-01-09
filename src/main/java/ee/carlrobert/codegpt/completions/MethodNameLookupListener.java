@@ -1,8 +1,5 @@
 package ee.carlrobert.codegpt.completions;
 
-import static ee.carlrobert.codegpt.settings.service.ServiceType.AZURE;
-import static ee.carlrobert.codegpt.settings.service.ServiceType.OPENAI;
-
 import com.intellij.codeInsight.completion.PrefixMatcher;
 import com.intellij.codeInsight.lookup.Lookup;
 import com.intellij.codeInsight.lookup.LookupElementBuilder;
@@ -15,7 +12,6 @@ import com.intellij.psi.util.PsiUtilCore;
 import ee.carlrobert.codegpt.Icons;
 import ee.carlrobert.codegpt.credentials.OpenAICredentialsManager;
 import ee.carlrobert.codegpt.settings.configuration.ConfigurationState;
-import ee.carlrobert.codegpt.settings.state.SettingsState;
 import java.util.Optional;
 import org.jetbrains.annotations.Nullable;
 
@@ -51,7 +47,7 @@ public class MethodNameLookupListener implements LookupManagerListener {
       LookupImpl lookup,
       Application application,
       String prompt) {
-    Optional.ofNullable(getCompletionResponse(prompt))
+    CompletionRequestService.getInstance().getLookupCompletion(prompt)
         .ifPresent(response -> {
           for (var value : response.split(",")) {
             application.runReadAction(() -> {
@@ -62,18 +58,5 @@ public class MethodNameLookupListener implements LookupManagerListener {
             });
           }
         });
-  }
-
-  private @Nullable String getCompletionResponse(String prompt) {
-    var selectedService = SettingsState.getInstance().getSelectedService();
-    if (selectedService == OPENAI || selectedService == AZURE) {
-      return Optional.ofNullable(CompletionClientProvider.getOpenAIClient()
-              .getChatCompletion(
-                  CompletionRequestProvider.buildOpenAILookupCompletionRequest(prompt))
-              .getChoices())
-          .map(choices -> choices.get(0).getMessage().getContent())
-          .orElse(null);
-    }
-    return null;
   }
 }
